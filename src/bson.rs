@@ -68,7 +68,7 @@ pub enum Bson {
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
-    DateTime(chrono::DateTime<Utc>),
+    DateTime(crate::DateTime),
     /// Symbol (Deprecated)
     Symbol(String),
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
@@ -290,7 +290,7 @@ impl From<oid::ObjectId> for Bson {
 
 impl From<chrono::DateTime<Utc>> for Bson {
     fn from(a: chrono::DateTime<Utc>) -> Bson {
-        Bson::DateTime(a)
+        Bson::DateTime(DateTime(a))
     }
 }
 
@@ -743,7 +743,7 @@ impl Bson {
 
                 if let Ok(date) = doc.get_str("$date") {
                     if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
-                        return Bson::DateTime(date.into());
+                        return Bson::DateTime(date.with_timezone(&Utc).into());
                     }
                 }
             }
@@ -987,7 +987,13 @@ impl Timestamp {
 /// }
 /// ```
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-pub struct DateTime(pub chrono::DateTime<Utc>);
+pub struct DateTime(chrono::DateTime<Utc>);
+
+impl Display for DateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
 
 impl DateTime {
     pub(crate) fn from_i64(date: i64) -> Self {
@@ -1040,9 +1046,9 @@ impl From<DateTime> for chrono::DateTime<Utc> {
     }
 }
 
-impl From<chrono::DateTime<Utc>> for DateTime {
-    fn from(x: chrono::DateTime<Utc>) -> Self {
-        DateTime(x)
+impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for DateTime {
+    fn from(x: chrono::DateTime<T>) -> Self {
+        DateTime(x.with_timezone(&Utc))
     }
 }
 

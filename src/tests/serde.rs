@@ -267,7 +267,7 @@ fn test_ser_datetime() {
     let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::DateTime(now)) }
+        &doc! { "date": (Bson::DateTime(now.into())) }
     );
 
     let xfoo: Foo = from_bson(x).unwrap();
@@ -677,7 +677,7 @@ fn test_datetime_helpers() {
     }
 
     let iso = "1996-12-20 00:39:57 UTC";
-    let date = chrono::DateTime::from_str(iso).unwrap();
+    let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
     let a = A { date: date.into() };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);

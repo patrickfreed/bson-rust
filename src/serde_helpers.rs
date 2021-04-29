@@ -124,10 +124,10 @@ pub mod iso_string_as_bson_datetime {
 
     /// Serializes an ISO string as a DateTime.
     pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
-        let date = chrono::DateTime::from_str(val).map_err(|_| {
+        let date = chrono::DateTime::<chrono::Utc>::from_str(val).map_err(|_| {
             ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
         })?;
-        Bson::DateTime(date).serialize(serializer)
+        Bson::DateTime(date.into()).serialize(serializer)
     }
 }
 
@@ -154,7 +154,7 @@ pub mod bson_datetime_as_iso_string {
         D: Deserializer<'de>,
     {
         let iso = String::deserialize(deserializer)?;
-        let date = chrono::DateTime::from_str(&iso).map_err(|_| {
+        let date = chrono::DateTime::<chrono::Utc>::from_str(&iso).map_err(|_| {
             de::Error::custom(format!("cannot convert {} to chrono::DateTime", iso))
         })?;
         Ok(DateTime::from(date))
