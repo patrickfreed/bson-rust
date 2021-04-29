@@ -9,9 +9,9 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
-        hex_string_as_object_id,
         bson_datetime_as_iso_string,
         chrono_datetime_as_bson_datetime,
+        hex_string_as_object_id,
         iso_string_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
@@ -735,9 +735,11 @@ fn test_oid_helpers() {
     }
 
     let oid = ObjectId::new();
-    let a = A { oid: oid.to_string() };
+    let a = A {
+        oid: oid.to_string(),
+    };
     let doc = to_document(&a).unwrap();
-    assert_eq!(doc.get_object_id("oid").unwrap(), oid); 
+    assert_eq!(doc.get_object_id("oid").unwrap(), oid);
     let a: A = from_document(doc).unwrap();
     assert_eq!(a.oid, oid.to_string());
 }

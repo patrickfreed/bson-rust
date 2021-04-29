@@ -21,13 +21,16 @@ pub use iso_string_as_bson_datetime::{
     serialize as serialize_iso_string_as_bson_datetime,
 };
 pub use timestamp_as_u32::{
-    deserialize as deserialize_timestamp_from_u32, serialize as serialize_timestamp_as_u32,
+    deserialize as deserialize_timestamp_from_u32,
+    serialize as serialize_timestamp_as_u32,
 };
 pub use u32_as_timestamp::{
-    deserialize as deserialize_u32_from_timestamp, serialize as serialize_u32_as_timestamp,
+    deserialize as deserialize_u32_from_timestamp,
+    serialize as serialize_u32_as_timestamp,
 };
 pub use uuid_as_binary::{
-    deserialize as deserialize_uuid_from_binary, serialize as serialize_uuid_as_binary,
+    deserialize as deserialize_uuid_from_binary,
+    serialize as serialize_uuid_as_binary,
 };
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
