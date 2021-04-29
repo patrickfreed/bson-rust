@@ -30,21 +30,19 @@ lazy_static! {
     static ref OID_COUNTER: AtomicUsize = AtomicUsize::new(thread_rng().gen_range(0, MAX_U24 + 1));
 }
 
-/// Errors that can occur during OID construction and generation.
+/// Errors that can occur during [`ObjectId`] construction and generation.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Error {
-    /// An invalid argument was passed in.
-    ArgumentError { message: String },
+    /// An invalid character was found in the provided hex string. Valid characters are: `0...9`,
+    /// `a...f`, or `A...F`.
+    #[non_exhaustive]
+    InvalidHexStringCharacter { c: char, index: usize, hex: String },
 
-    /// An error occured parsing a hex string.
-    FromHexError(FromHexError),
-}
-
-impl From<FromHexError> for Error {
-    fn from(err: FromHexError) -> Error {
-        Error::FromHexError(err)
-    }
+    /// An [`ObjectId`]'s hex string representation must be an exactly 12-byte (24-char)
+    /// hexadecimal string.
+    #[non_exhaustive]
+    InvalidHexStringLength { length: usize, hex: String },
 }
 
 /// Alias for Result<T, oid::Error>.
@@ -52,21 +50,28 @@ pub type Result<T> = result::Result<T, Error>;
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::ArgumentError { ref message } => message.fmt(fmt),
-            Error::FromHexError(ref inner) => inner.fmt(fmt),
+        match self {
+            Error::InvalidHexStringCharacter { c, index, hex } => {
+                write!(
+                    fmt,
+                    "invalid character '{}' was found at index {} in the provided hex string: \
+                     \"{}\"",
+                    c, index, hex
+                )
+            }
+            Error::InvalidHexStringLength { length, hex } => {
+                write!(
+                    fmt,
+                    "provided hex string representation must be exactly 12 bytes, instead got: \
+                     \"{}\", length {}",
+                    hex, length
+                )
+            }
         }
     }
 }
 
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        match *self {
-            Error::ArgumentError { .. } => None,
-            Error::FromHexError(ref inner) => Some(inner),
-        }
-    }
-}
+impl error::Error for Error {}
 
 /// A wrapper around raw 12-byte ObjectId representations.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -89,7 +94,7 @@ impl FromStr for ObjectId {
 }
 
 impl ObjectId {
-    /// Generates a new ObjectID, represented in bytes.
+    /// Generates a new [`ObjectId`], represented in bytes.
     /// See the [docs](http://docs.mongodb.org/manual/reference/object-id/)
     /// for more information.
     pub fn new() -> ObjectId {
@@ -108,17 +113,30 @@ impl ObjectId {
         ObjectId::with_bytes(buf)
     }
 
-    /// Constructs a new ObjectId wrapper around the raw byte representation.
+    /// Constructs a new [`ObjectId`] wrapper around the raw byte representation.
     pub fn with_bytes(bytes: [u8; 12]) -> ObjectId {
         ObjectId { id: bytes }
     }
 
-    /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
+    /// Creates an [`ObjectId`] using a 12-byte (24-char) hexadecimal string.
     pub fn with_string(s: &str) -> Result<ObjectId> {
-        let bytes: Vec<u8> = hex::decode(s.as_bytes())?;
+        let bytes: Vec<u8> = hex::decode(s.as_bytes()).map_err(|e| match e {
+            FromHexError::InvalidHexCharacter { c, index } => Error::InvalidHexStringCharacter {
+                c,
+                index,
+                hex: s.to_string(),
+            },
+            FromHexError::InvalidStringLength | FromHexError::OddLength => {
+                Error::InvalidHexStringLength {
+                    length: s.len(),
+                    hex: s.to_string(),
+                }
+            }
+        })?;
         if bytes.len() != 12 {
-            Err(Error::ArgumentError {
-                message: "Provided string must be a 12-byte hexadecimal string.".to_owned(),
+            Err(Error::InvalidHexStringLength {
+                length: s.len(),
+                hex: s.to_string(),
             })
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
@@ -127,15 +145,15 @@ impl ObjectId {
         }
     }
 
-    /// Retrieves the timestamp (chrono::DateTime) from an ObjectId.
-    pub fn timestamp(&self) -> chrono::DateTime<Utc> {
+    /// Retrieves the timestamp from an [`ObjectId`].
+    pub fn timestamp(&self) -> crate::DateTime {
         let mut buf = [0; 4];
         buf.copy_from_slice(&self.id[0..4]);
         let seconds_since_epoch = u32::from_be_bytes(buf);
 
         let naive_datetime = chrono::NaiveDateTime::from_timestamp(seconds_since_epoch as i64, 0);
         let timestamp: chrono::DateTime<Utc> = chrono::DateTime::from_utc(naive_datetime, Utc);
-        timestamp
+        timestamp.into()
     }
 
     /// Returns the raw byte representation of an ObjectId.
